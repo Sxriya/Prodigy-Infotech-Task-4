@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            background: linear-gradient(135deg, #00ffff, #ff007f);
+            background-size: 400% 400%;
+            animation: gradient 10s ease infinite;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            position: relative;
+            z-index: 10;
+        }
+
+        .title {
+            font-size: 3em;
+            color: #ff0000;
+            text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000, 0 0 15px #ff0000;
+            animation: blink 1s infinite alternate;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 10px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .cell:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .cell.winner {
+            animation: popUp 0.5s forwards;
+        }
+
+        @keyframes popUp {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        #restart {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1em;
+            color: #fff;
+            background: #ff007f;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px #ff007f, 0 0 10px #ff007f, 0 0 15px #ff007f;
+        }
+
+        #restart:hover {
+            background: #00ff7f;
+            box-shadow: 0 0 10px #00ff7f, 0 0 20px #00ff7f, 0 0 30px #00ff7f;
+        }
+
+        #restart:focus {
+            outline: none;
+        }
+
+        /* Pop-up modal styles */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #modalContent {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        #modalClose {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #ff007f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #modalClose:hover {
+            background: #00ff7f;
+        }
+
+        .falling-letter {
+            position: absolute;
+            font-size: 2em;
+            color: #00ffff;
+            text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            0% {
+                top: -50px;
+                opacity: 1;
+            }
+            100% {
+                top: 100vh;
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Tic Tac Toe</h1>
+        <div class="board" id="board"></div>
+        <button id="restart">Restart</button>
+    </div>
+
+    <!-- Modal for game result -->
+    <div id="modal">
+        <div id="modalContent">
+            <h2 id="modalMessage"></h2>
+            <button id="modalClose">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const restartButton = document.getElementById('restart');
+        const modal = document.getElementById('modal');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalClose = document.getElementById('modalClose');
+
+        let gameActive = true;
+        let currentPlayer = "X";
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+
+        const winningConditions = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6]
+        ];
+
+        function handleCellClick(clickedCell, clickedCellIndex) {
+            if (gameState[clickedCellIndex] !== "" || !gameActive) {
+                return;
+            }
+
+            gameState[clickedCellIndex] = currentPlayer;
+            clickedCell.innerHTML = currentPlayer;
+
+            checkResult();
+
+            if (gameActive) {
+                currentPlayer = "O"; // AI's turn
+                aiPlay();
+            }
+        }
+
+        function checkResult() {
+            let roundWon = false;
+
+            for (let i = 0; i < winningConditions.length; i++) {
+                const [a, b, c] = winningConditions[i];
+                if (gameState[a] === "" || gameState[b] === "" || gameState[c] === "") {
+                    continue;
+                }
+                if (gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                    roundWon = true;
+                    document.querySelectorAll('.cell')[a].classList.add('winner');
+                    document.querySelectorAll('.cell')[b].classList.add('winner');
+                    document.querySelectorAll('.cell')[c].classList.add('winner');
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                modalMessage.innerHTML = `Player ${currentPlayer} wins!`;
+                modal.style.display = 'flex';
+                gameActive = false;
+                return;
+            }
+
+            if (!gameState.includes("")) {
+                modalMessage.innerHTML = `It's a draw!`;
+                modal.style.display = 'flex';
+                gameActive = false;
+            }
+        }
+
+        function aiPlay() {
+            let availableCells = gameState.map((val, index) => (val === "") ? index : null).filter(val => val !== null);
+            
+            if (availableCells.length === 0) return;
+
+            const randomIndex = Math.floor(Math.random() * availableCells.length);
+            const aiMove = availableCells[randomIndex];
+
+            gameState[aiMove] = currentPlayer;
+            const cellToFill = board.children[aiMove];
+
+            cellToFill.innerHTML = currentPlayer;
+
+            checkResult();
+
+            if (gameActive) {
+                currentPlayer = "X"; 
+            }
+        }
+
+        function createBoard() {
+            board.innerHTML = "";
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            gameActive = true;
+            currentPlayer = "X";
+
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+                cell.setAttribute("data-index", i);
+                cell.addEventListener("click", function () {
+                    handleCellClick(cell, i);
+                });
+                board.appendChild(cell);
+            }
+        }
+
+        restartButton.addEventListener('click', createBoard);
+        createBoard();
+
+        modalClose.addEventListener('click', () => {
+            modal.style.display = 'none';
+            createBoard();
+        });
+
+        function createFallingLetters() {
+            const letters = ["X", "O"];
+            setInterval(() => {
+                const letter = letters[Math.floor(Math.random() * letters.length)];
+                const fallingLetter = document.createElement("div");
+                fallingLetter.classList.add("falling-letter");
+                fallingLetter.textContent = letter;
+
+                const randomX = Math.random() * window.innerWidth;
+                fallingLetter.style.left = `${randomX}px`;
+                fallingLetter.style.animationDuration = `${Math.random() * 3 + 2}s`; // Random duration
+
+                document.body.appendChild(fallingLetter);
+
+                // Remove letter after animation completes
+                fallingLetter.addEventListener('animationend', () => {
+                    fallingLetter.remove();
+                });
+            }, 1000); // Create a new letter every second
+        }
+
+        createFallingLetters();
+    </script>
+</body>
+</html>
